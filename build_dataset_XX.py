@@ -1,0 +1,66 @@
+# USAGE
+# python build_dataset.py
+
+# import the necessary packages
+import config
+from imutils import paths
+import random
+import shutil
+import os
+
+# grab the paths to all input images in the original input directory
+# and shuffle them
+#imagePaths = list(paths.list_images("/floyd/home/datasets/train"))
+df = pd.read_csv( config.BASE_PATH +'/train.csv')
+#shuffle dataframe in-place and reset the index
+df = df.sample(frac=1).reset_index(drop=True)
+#random.seed(42)
+#random.shuffle(imagePaths)
+trainPaths = df.path.values.tolist()
+trainLabels = df.category.values.tolist()
+
+# compute the training and testing split
+i = int(len(imagePaths) * config.TRAIN_SPLIT)
+trainPaths = imagePaths[:i]
+testPaths = imagePaths[i:]
+
+# perform another stratified sampling, this time to build the
+# validation data
+split = train_test_split(trainPaths, trainLabels,test_size=config.NUM_VAL_IMAGES, stratify=trainLabels,random_state=42)
+(trainPaths, valPaths, trainLabels, valLabels) = split
+
+# define the datasets that we'll be building
+datasets = [
+	("training", trainPaths, config.TRAIN_PATH),
+	("validation", valPaths, config.VAL_PATH)
+]
+
+# loop over the datasets
+for (dType, imagePaths, baseOutput) in datasets:
+	# show which data split we are creating
+	print("[INFO] building '{}' split".format(dType))
+
+	# if the output base output directory does not exist, create it
+	if not os.path.exists(baseOutput):
+		print("[INFO] 'creating {}' directory".format(baseOutput))
+		os.makedirs(baseOutput)
+
+	# loop over the input image paths
+	for inputPath in imagePaths:
+		# extract the filename of the input image and extract the
+		# class label ("0" for "negative" and "1" for "positive")
+		filename = inputPath.split(os.path.sep)[-1]
+		label = filename[-5:-4]
+
+		# build the path to the label directory
+		labelPath = os.path.sep.join([baseOutput, label])
+
+		# if the label output directory does not exist, create it
+		if not os.path.exists(labelPath):
+			print("[INFO] 'creating {}' directory".format(labelPath))
+			os.makedirs(labelPath)
+
+		# construct the path to the destination image and then copy
+		# the image itself
+		p = os.path.sep.join([labelPath, filename])
+		shutil.copy2(inputPath, p)
